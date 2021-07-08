@@ -1,9 +1,12 @@
 mod banner;
 
-use instant::Instant;
+// use instant::Instant;
+use lazy_static::lazy_static;
 use md5::Digest;
-// use rayon::prelude::*;
 use std::env;
+use std::process;
+use std::sync::Mutex;
+use std::thread;
 
 /*
     example hash(MD5):
@@ -16,18 +19,39 @@ use std::env;
 //     format!("{:x}", hashvalue)
 // }
 
+lazy_static! {
+    static ref HASH_DICT: Mutex<Vec<String>> = Mutex::new(vec![]);
+    static ref HASH_INPUT: String = env::args().nth(2).unwrap();
+}
+
+fn crack() {
+    // parallization
+    HASH_DICT.lock().iter().for_each(|lines| {
+        for line in lines.iter() {
+            thread::spawn(move || {
+                let wordlist_string = line.trim();
+                let hashvalue = md5::Md5::digest(wordlist_string.as_bytes());
+                let formatted_hash = format!("{:x}", hashvalue);
+
+                if formatted_hash == *HASH_INPUT {
+                    println!("🤍 Cracked! {} -> {}", formatted_hash, wordlist_string);
+                    process::exit(0);
+                }
+            });
+        }
+    });
+}
+
 fn main() -> std::io::Result<()> {
     banner::display_banner();
 
-    let now = Instant::now();
-    let mut found: bool = false;
+    // let now = Instant::now();
 
     // TODO: use a real fucking argument parser.
     let args: Vec<String> = env::args().collect();
     let wordlist_file = &args[1];
-    let hash_input = args[2].parse::<String>().unwrap();
 
-    println!("📋 Wordlist: {}", wordlist_file);
+    // println!("📋 Wordlist: {}", wordlist_file);
 
     // TODO: check if the hash is already cracked in the local crack repository and also in the online repository.
     // local repository: ~/.ruo/ruo.saved
@@ -36,29 +60,11 @@ fn main() -> std::io::Result<()> {
     let mut buffer = String::new();
 
     while let Some(line) = reader.read_line(&mut buffer) {
-        let wordlist_string = line?.trim();
-        let hashvalue = md5::Md5::digest(wordlist_string.as_bytes());
-
-        let formatted_hash = format!("{:x}", hashvalue);
-
-        if formatted_hash == hash_input {
-            println!("🤍 Cracked! {} -> {}", formatted_hash, wordlist_string);
-            found = true;
-            break;
-        }
+        // HASH_DICT.lock().unwrap().push(line?.trim().to_string());
     }
+    println!("loaded the wordlist file.");
 
-    if found {
-        println!(
-            "✔️ Session completed in {}s. Hash found!",
-            now.elapsed().as_secs()
-        );
-    } else {
-        println!(
-            "❌ Session completed in {}s. Hash not found.",
-            now.elapsed().as_secs()
-        );
-    }
+    crack();
 
     Ok(())
 }

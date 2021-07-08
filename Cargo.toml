@@ -7,4 +7,4 @@ authors = ["asjidkalam <asjid@odinshell.ninja>"]
 [dependencies]
 md-5 = "0.9.1"
 instant = "0.1.9"
-rayon = "1.5.1"
+lazy_static = "1.4.0"
