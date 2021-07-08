@@ -1,0 +1,10 @@
+[package]
+name = "ruo"
+version = "0.1.0"
+edition = "2018"
+authors = ["asjidkalam <asjid@odinshell.ninja>"]
+
+[dependencies]
+md-5 = "0.9.1"
+instant = "0.1.9"
+rayon = "1.5.1"
