@@ -5,6 +5,9 @@ edition = "2018"
 authors = ["asjidkalam <asjid@odinshell.ninja>"]
 
 [dependencies]
-md-5 = "0.9.1"
 instant = "0.1.9"
 lazy_static = "1.4.0"
+indicatif = "0.16.2"
+rayon = "1.5.1"
+easy_reader = "0.5.1"
+md-5 = "0.9.1"
