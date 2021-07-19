@@ -10,4 +10,8 @@ lazy_static = "1.4.0"
 indicatif = "0.16.2"
 rayon = "1.5.1"
 easy_reader = "0.5.1"
+
 md-5 = "0.9.1"
+sha2 = "0.9.5"
+sha1 = "0.6.0"
+ripemd320 = "0.9.0"

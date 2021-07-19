@@ -1,28 +1,25 @@
+mod algorithms;
 mod banner;
 
 use instant::Instant;
 use lazy_static::lazy_static;
-use md5::Digest;
 use rayon::prelude::*;
 use std::env;
 use std::process;
-
-use indicatif::ProgressBar;
-
-/*
-    example hash(MD5):
-    e890f806dfd189052ca7b39ac29da142 -> PASSWORD1
-*/
 
 lazy_static! {
     static ref HASH_INPUT: String = env::args().nth(2).unwrap();
 }
 
+/*
+    ruo currently supports: MD5, SHA1, RipeMD320, SHA256 and SHA512
+*/
+
 static mut LOAD_TIME: u128 = 0;
 
 fn crack(line: String, now: std::time::Instant) {
-    let hashvalue = md5::Md5::digest(line.as_bytes());
-    let formatted_hash = format!("{:x}", hashvalue);
+    let hash_length = HASH_INPUT.len();
+    let formatted_hash: String = algorithms::create_hash(&line, hash_length);
 
     if formatted_hash == *HASH_INPUT {
         unsafe {
@@ -46,10 +43,18 @@ fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
     let wordlist_file = &args[1];
 
-    println!("📋 Wordlist: {}", wordlist_file);
+    // println!("📋 Wordlist: {}", wordlist_file);
 
     // TODO: check if the hash is already cracked in the local crack repository and also in the online repository.
     // local repository: ~/.ruo/ruo.saved
+
+    // len check
+    let valid_lens = [32, 40, 80, 64, 128];
+    let hash_len = HASH_INPUT.len();
+    if !valid_lens.contains(&hash_len) {
+        println!("❌ Invalid hash length!");
+        process::exit(1);
+    }
 
     let mut reader = my_reader::BufReader::open(wordlist_file)?;
     let mut buffer = String::new();
@@ -65,16 +70,10 @@ fn main() -> std::io::Result<()> {
         println!("loaded the wordlist file in {} millisecs.", LOAD_TIME);
     }
 
-    let pb = ProgressBar::new(hash_dict.len() as u64);
-
-    for _ in 0..hash_dict.len() {
-        hash_dict.par_iter().for_each(|lines| {
-            let line = lines.clone();
-            crack(line, now);
-        });
-        pb.inc(1);
-    }
-    pb.finish_with_message("Done!");
+    hash_dict.par_iter().for_each(|lines| {
+        let line = lines.clone();
+        crack(line, now);
+    });
 
     Ok(())
 }
