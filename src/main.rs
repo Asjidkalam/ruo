@@ -4,11 +4,17 @@ mod banner;
 use instant::Instant;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::env;
+use std::fs;
+use std::io::ErrorKind;
+use std::path::Path;
 use std::process;
 
 lazy_static! {
     static ref HASH_INPUT: String = env::args().nth(2).unwrap();
+    static ref LOCAL_HASH_PATH: String =
+        format!("{}/.ruo/hashes.saved", env::home_dir().unwrap().display());
 }
 
 /*
@@ -17,9 +23,14 @@ lazy_static! {
 
 static mut LOAD_TIME: u128 = 0;
 
-fn crack(line: String, now: std::time::Instant) {
-    let hash_length = HASH_INPUT.len();
-    let formatted_hash: String = algorithms::create_hash(&line, hash_length);
+#[derive(Serialize, Deserialize)]
+struct LocalHash {
+    hash: String,
+    plaintext: String,
+}
+
+fn crack(line: String, hash_len: usize, now: std::time::Instant) {
+    let formatted_hash: String = algorithms::create_hash(&line, hash_len);
 
     if formatted_hash == *HASH_INPUT {
         unsafe {
@@ -30,6 +41,18 @@ fn crack(line: String, now: std::time::Instant) {
                 now.elapsed().as_millis() - LOAD_TIME
             );
         }
+
+        // save the hash locally
+        let mut local_hive: Vec<LocalHash> = Vec::new();
+        let new_hash = LocalHash {
+            hash: formatted_hash,
+            plaintext: line,
+        };
+        local_hive.push(new_hash);
+        let json = serde_json::to_string(&local_hive).unwrap();
+
+        fs::write(&*LOCAL_HASH_PATH, &json).expect("Unable to write locally.");
+
         process::exit(0);
     }
 }
@@ -45,15 +68,71 @@ fn main() -> std::io::Result<()> {
 
     // println!("📋 Wordlist: {}", wordlist_file);
 
-    // TODO: check if the hash is already cracked in the local crack repository and also in the online repository.
-    // local repository: ~/.ruo/ruo.saved
+    // check for saved hashes locally
+    // BUGS: file is overwriting, not appending.
+    // TODO: read the entire local file to memory before writing.
+    let f = fs::File::open(&*LOCAL_HASH_PATH);
+    let _ = match f {
+        Ok(file) => file,
+        Err(error) => match error.kind() {
+            ErrorKind::NotFound => match fs::File::create(&*LOCAL_HASH_PATH) {
+                Ok(fc) => fc,
+                Err(e) => panic!("Problem creating the file: {:?}", e),
+            },
+            _ => panic!("Unexpected error!"),
+        },
+    };
 
-    // len check
-    let valid_lens = [32, 40, 80, 64, 128];
+    let json_file_path = Path::new(&*LOCAL_HASH_PATH);
+
+    let data = fs::read_to_string(json_file_path).unwrap();
+
+    let mut local_hive: Vec<LocalHash> = Vec::new();
+    if fs::metadata(json_file_path).unwrap().len() != 0 {
+        local_hive = serde_json::from_str(&data)?;
+    }
+
+    for hash_object in local_hive {
+        // check if the current hash matches to the hash in the local_hive.
+        if hash_object.hash == *HASH_INPUT {
+            println!(
+                "🤍 Saved hash found! {} -> \"{}\"",
+                hash_object.hash, hash_object.plaintext
+            );
+        }
+    }
+
+    // sanity check
+    let valid_lens = vec![32, 40, 80, 64, 128];
     let hash_len = HASH_INPUT.len();
     if !valid_lens.contains(&hash_len) {
         println!("❌ Invalid hash length!");
         process::exit(1);
+    }
+
+    for alg_len in valid_lens.iter() {
+        if alg_len == &hash_len {
+            match alg_len {
+                32 => {
+                    println!("Loaded MD5 hash.");
+                }
+                40 => {
+                    println!("Loaded SHA-1 hash.");
+                }
+                80 => {
+                    println!("Loaded RipeMD320 hash.");
+                }
+                64 => {
+                    println!("Loaded SHA-256 hash.");
+                }
+                128 => {
+                    println!("Loaded SHA-512 hash.");
+                }
+                _ => {
+                    break;
+                }
+            }
+        }
     }
 
     let mut reader = my_reader::BufReader::open(wordlist_file)?;
@@ -72,13 +151,13 @@ fn main() -> std::io::Result<()> {
 
     hash_dict.par_iter().for_each(|lines| {
         let line = lines.clone();
-        crack(line, now);
+        crack(line, hash_len, now);
     });
 
     Ok(())
 }
 
-// reusing the same buffer for each String
+// reusing the same buffer.
 mod my_reader {
     use std::{
         fs::File,
