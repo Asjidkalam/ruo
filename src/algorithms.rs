@@ -1,6 +1,6 @@
 use sha2::{Digest, Sha256, Sha512};
 
-pub fn create_hash(line: &String, hash_length: usize) -> String {
+pub fn create_hash(line: &str, hash_length: usize) -> String {
     match hash_length {
         // MD5
         32 => {

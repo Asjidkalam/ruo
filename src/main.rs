@@ -43,8 +43,8 @@ fn load_local_hive() -> Vec<LocalHash> {
     local_hive
 }
 
-fn crack(line: String, hash_len: usize, now: std::time::Instant) {
-    let formatted_hash: String = algorithms::create_hash(&line, hash_len);
+fn crack(line: &str, hash_len: usize, now: std::time::Instant) {
+    let formatted_hash: String = algorithms::create_hash(line, hash_len);
 
     if formatted_hash == *HASH_INPUT {
         /*
@@ -65,7 +65,7 @@ fn crack(line: String, hash_len: usize, now: std::time::Instant) {
 
         let new_hash = LocalHash {
             hash: formatted_hash,
-            plaintext: line,
+            plaintext: line.to_string(),
         };
 
         local_hive.push(new_hash);
@@ -87,8 +87,6 @@ fn crack(line: String, hash_len: usize, now: std::time::Instant) {
 
 fn main() -> std::io::Result<()> {
     banner::display_banner();
-
-    let mut hash_dict: Vec<String> = vec![];
 
     // TODO: argument parser lol.
     let args: Vec<String> = env::args().collect();
@@ -155,14 +153,11 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    let mut reader = my_reader::BufReader::open(wordlist_file)?;
-    let mut buffer = String::new();
-
     let now = Instant::now();
 
-    while let Some(line) = reader.read_line(&mut buffer) {
-        hash_dict.push(line?.trim_end().to_string());
-    }
+    let file = fs::read_to_string(wordlist_file).unwrap();
+    let newline_split = file.split("\n");
+    let dict: Vec<&str> = newline_split.collect();
 
     // debug
     unsafe {
@@ -171,43 +166,10 @@ fn main() -> std::io::Result<()> {
     }
 
     // rayon goes brr
-    hash_dict.par_iter().for_each(|lines| {
-        let line = lines.clone();
-        crack(line, hash_len, now);
+    dict.par_iter().for_each(|lines| {
+        // let line = lines.clone();
+        crack(lines, hash_len, now);
     });
 
     Ok(())
-}
-
-// reusing the same buffer.
-mod my_reader {
-    use std::{
-        fs::File,
-        io::{self, prelude::*},
-    };
-
-    pub struct BufReader {
-        reader: io::BufReader<File>,
-    }
-
-    impl BufReader {
-        pub fn open(path: impl AsRef<std::path::Path>) -> io::Result<Self> {
-            let file = File::open(path)?;
-            let reader = io::BufReader::new(file);
-
-            Ok(Self { reader })
-        }
-
-        pub fn read_line<'buf>(
-            &mut self,
-            buffer: &'buf mut String,
-        ) -> Option<io::Result<&'buf mut String>> {
-            buffer.clear();
-
-            self.reader
-                .read_line(buffer)
-                .map(|u| if u == 0 { None } else { Some(buffer) })
-                .transpose()
-        }
-    }
 }
