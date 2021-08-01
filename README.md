@@ -1,7 +1,7 @@
 # `Ruo` 🧁
 Ruo is a dictionary-based password cracker written in rust 🦀. The primary purpose is to crack weak hashes/commonly used passwords.
 
-Cracked passwords will be printed to the terminal and saved in the file `$HOME/hashes.saved`. The `$HOME/hashes.saved` file is also used to not load password hashes that you already cracked when you run ruo the next time.
+Cracked passwords will be printed to the terminal and saved in the file `$HOME/.ruo/hashes.saved`. The `$HOME/.ruo/hashes.saved` file is also used to not load password hashes that you already cracked when you run ruo the next time.
 
 <p align="left">
 	<img src="https://img.shields.io/badge/version-0.1.0-blue.svg" title="version" alt="version">
