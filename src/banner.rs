@@ -1,3 +1,3 @@
 pub fn display_banner() {
-    println!("ruo (debug build)");
+    println!("🔫 ruo v0.1");
 }

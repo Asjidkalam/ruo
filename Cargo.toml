@@ -3,6 +3,9 @@ name = "ruo"
 version = "0.1.0"
 edition = "2018"
 authors = ["Asjid Kalam <asjid@odinshell.ninja>"]
+description = "Tiny hash cracked written in rust."
+repository = "https://github.com/Asjidkalam/ruo.git"
+license = "MIT"
 
 [dependencies]
 instant = "0.1.9"

@@ -7,6 +7,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
+use std::io::prelude::*;
 use std::io::ErrorKind;
 use std::path::Path;
 use std::process;
@@ -19,8 +20,10 @@ lazy_static! {
 
 /*
     ruo currently supports: MD5, SHA1, RipeMD320, SHA256 and SHA512
+    @odinshell - 01/08/2021
 */
 
+// debug
 static mut LOAD_TIME: u128 = 0;
 
 #[derive(Serialize, Deserialize)]
@@ -29,10 +32,25 @@ struct LocalHash {
     plaintext: String,
 }
 
+fn load_local_hive() -> Vec<LocalHash> {
+    let json_file_path = Path::new(&*LOCAL_HASH_PATH);
+
+    let data = fs::read_to_string(json_file_path).unwrap();
+    let mut local_hive: Vec<LocalHash> = Vec::new();
+    if fs::metadata(json_file_path).unwrap().len() != 0 {
+        local_hive = serde_json::from_str(&data).unwrap();
+    }
+    local_hive
+}
+
 fn crack(line: String, hash_len: usize, now: std::time::Instant) {
     let formatted_hash: String = algorithms::create_hash(&line, hash_len);
 
     if formatted_hash == *HASH_INPUT {
+        /*
+            LOAD_TIME and unsafe{} is currently used for wordlist load time debug
+            will be removed later.
+        */
         unsafe {
             println!(
                 "🤍 Cracked! {} -> \"{}\" in {} millisecs",
@@ -42,16 +60,26 @@ fn crack(line: String, hash_len: usize, now: std::time::Instant) {
             );
         }
 
-        // save the hash locally
-        let mut local_hive: Vec<LocalHash> = Vec::new();
+        // loading the hash file, adding the new hash and saving locally.
+        let mut local_hive = load_local_hive();
+
         let new_hash = LocalHash {
             hash: formatted_hash,
             plaintext: line,
         };
+
         local_hive.push(new_hash);
         let json = serde_json::to_string(&local_hive).unwrap();
 
-        fs::write(&*LOCAL_HASH_PATH, &json).expect("Unable to write locally.");
+        let mut file_write = fs::OpenOptions::new()
+            .write(true)
+            .append(false)
+            .open(&*LOCAL_HASH_PATH)
+            .unwrap();
+
+        if let Err(e) = writeln!(file_write, "{}", &json) {
+            eprintln!("Couldn't write to file: {}", e);
+        }
 
         process::exit(0);
     }
@@ -62,15 +90,13 @@ fn main() -> std::io::Result<()> {
 
     let mut hash_dict: Vec<String> = vec![];
 
-    // TODO: use a real fucking argument parser.
+    // TODO: argument parser lol.
     let args: Vec<String> = env::args().collect();
     let wordlist_file = &args[1];
 
-    // println!("📋 Wordlist: {}", wordlist_file);
-
     // check for saved hashes locally
-    // BUGS: file is overwriting, not appending.
-    // TODO: read the entire local file to memory before writing.
+    fs::create_dir_all(format!("{}/.ruo", env::home_dir().unwrap().display()))?;
+
     let f = fs::File::open(&*LOCAL_HASH_PATH);
     let _ = match f {
         Ok(file) => file,
@@ -83,22 +109,16 @@ fn main() -> std::io::Result<()> {
         },
     };
 
-    let json_file_path = Path::new(&*LOCAL_HASH_PATH);
+    let local_hive = load_local_hive();
 
-    let data = fs::read_to_string(json_file_path).unwrap();
-
-    let mut local_hive: Vec<LocalHash> = Vec::new();
-    if fs::metadata(json_file_path).unwrap().len() != 0 {
-        local_hive = serde_json::from_str(&data)?;
-    }
-
+    // check if the current hash matches to the hash in the local_hive.
     for hash_object in local_hive {
-        // check if the current hash matches to the hash in the local_hive.
         if hash_object.hash == *HASH_INPUT {
             println!(
                 "🤍 Saved hash found! {} -> \"{}\"",
                 hash_object.hash, hash_object.plaintext
             );
+            process::exit(0);
         }
     }
 
@@ -144,11 +164,13 @@ fn main() -> std::io::Result<()> {
         hash_dict.push(line?.trim_end().to_string());
     }
 
+    // debug
     unsafe {
         LOAD_TIME = now.elapsed().as_millis();
         println!("loaded the wordlist file in {} millisecs.", LOAD_TIME);
     }
 
+    // rayon goes brr
     hash_dict.par_iter().for_each(|lines| {
         let line = lines.clone();
         crack(line, hash_len, now);
