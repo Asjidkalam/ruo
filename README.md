@@ -48,7 +48,7 @@ $ ./target/release/ruo <WORDLIST-FILE-PATH> <HASH-TO-CRACK>
 ```
 🔫 ruo v0.1
 Loaded SHA-256 hash.
-Loaded the wordlist file in 1838 millisecs.
+Loaded the wordlist file in 838 millisecs.
 🤍 Cracked! 244f28ce3685167745ad3a7f1760fd4483bbbb3fd150b9087b95442d4d6fd905 -> "PASSWORD1" in 6 millisecs
 ```
 
