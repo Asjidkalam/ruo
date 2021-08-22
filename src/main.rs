@@ -1,6 +1,7 @@
 mod algorithms;
 mod banner;
 
+use home::home_dir;
 use instant::Instant;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
@@ -15,7 +16,7 @@ use std::process;
 lazy_static! {
     static ref HASH_INPUT: String = env::args().nth(2).unwrap();
     static ref LOCAL_HASH_PATH: String =
-        format!("{}/.ruo/hashes.saved", env::home_dir().unwrap().display());
+        format!("{}/.ruo/hashes.saved", home_dir().unwrap().display());
 }
 
 /*
@@ -88,12 +89,12 @@ fn crack(line: &str, hash_len: usize, now: std::time::Instant) {
 fn main() -> std::io::Result<()> {
     banner::display_banner();
 
-    // TODO: argument parser lol.
+    // [TODO]: argument parser lol.
     let args: Vec<String> = env::args().collect();
     let wordlist_file = &args[1];
 
     // check for saved hashes locally
-    fs::create_dir_all(format!("{}/.ruo", env::home_dir().unwrap().display()))?;
+    fs::create_dir_all(format!("{}/.ruo", home_dir().unwrap().display()))?;
 
     let f = fs::File::open(&*LOCAL_HASH_PATH);
     let _ = match f {
@@ -167,7 +168,6 @@ fn main() -> std::io::Result<()> {
 
     // rayon goes brr
     dict.par_iter().for_each(|lines| {
-        // let line = lines.clone();
         crack(lines, hash_len, now);
     });
 
